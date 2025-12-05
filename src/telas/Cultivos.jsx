@@ -6,8 +6,13 @@ import {
   deleteCultivoPorIdAPI
 } from '../servicos/cultivoServico';
 import { getProdutoresAPI } from '../servicos/produtorServico';
+import { getUsuario } from '../seguranca/Autenticacao';
 
 function Cultivos() {
+  const usuarioLogado = getUsuario(); // contém id e tipo A/U
+
+  const isAdmin = () => usuarioLogado?.tipo === "A";
+
   const [cultivos, setCultivos] = useState([]);
   const [produtores, setProdutores] = useState([]);
 
@@ -27,11 +32,39 @@ function Cultivos() {
     carregarDados();
   }, []);
 
+  // =====================================================
+  // CARREGAR CULTIVOS + PRODUTORES (COM VALIDAÇÃO)
+  // =====================================================
   const carregarDados = async () => {
     const cultivosData = await getCultivosAPI();
     const produtoresData = await getProdutoresAPI();
-    setCultivos(cultivosData || []);
-    setProdutores(produtoresData || []);
+
+    const listaCultivos =
+      Array.isArray(cultivosData)
+        ? cultivosData
+        : Array.isArray(cultivosData?.dados)
+          ? cultivosData.dados
+          : [];
+
+    const listaProdutores =
+      Array.isArray(produtoresData)
+        ? produtoresData
+        : Array.isArray(produtoresData?.dados)
+          ? produtoresData.dados
+          : [];
+
+    // 🔒 RESTRIÇÃO: Se NÃO for admin, só mostra cultivos do próprio produtor
+    const cultivosFiltrados = isAdmin()
+      ? listaCultivos
+      : listaCultivos.filter(c => Number(c.id_produtor) === Number(usuarioLogado.id));
+
+    // 🔒 RESTRIÇÃO: usuários comuns só podem ver eles mesmos na lista
+    const produtoresFiltrados = isAdmin()
+      ? listaProdutores
+      : listaProdutores.filter(p => Number(p.id) === Number(usuarioLogado.id));
+
+    setCultivos(cultivosFiltrados);
+    setProdutores(produtoresFiltrados);
   };
 
   const tiposUnicos = Array.from(new Set(cultivos.map(c => c.tipo_cultura))).filter(Boolean);
@@ -70,36 +103,38 @@ function Cultivos() {
       area: '',
       data_plantio: '',
       data_colheita: '',
-      id_produtor: ''
+      id_produtor: isAdmin() ? '' : usuarioLogado.id // 🔒 usuário padrão fica amarrado ao próprio id
     });
     setUsarNovoTipo(false);
     setNovoTipo('');
   };
 
+  // =====================================================
+  // SALVAR / ATUALIZAR CULTIVO
+  // =====================================================
   const salvar = async () => {
     const tipoFinal = usarNovoTipo ? novoTipo.trim() : form.tipo_cultura;
 
-    if (!tipoFinal || !form.area || !form.data_plantio || !form.id_produtor) {
+    if (!tipoFinal || !form.area || !form.data_plantio) {
+      alert("Preencha todos os campos obrigatórios.");
       return;
     }
 
     const metodo = form.id ? "PUT" : "POST";
 
     const dados = {
-      ...form,
       tipo_cultura: tipoFinal,
-      data_plantio: form.data_plantio || null,
+      area: form.area,
+      data_plantio: form.data_plantio,
       data_colheita: form.data_colheita || null,
-      id_produtor: Number(form.id_produtor)
+      id_produtor: isAdmin() ? Number(form.id_produtor) : Number(usuarioLogado.id) // 🔒 usuário comum sempre salva com seu próprio id
     };
 
-    if (metodo === "POST") delete dados.id;
+    if (metodo === "PUT") {
+      dados.id = form.id;
+    }
 
-    console.log("Enviando cultivo para API:", dados);
-
-    const resposta = await cadastraOuAtualizaCultivoAPI(dados, metodo);
-    console.log("Resposta API:", resposta);
-
+    await cadastraOuAtualizaCultivoAPI(dados, metodo);
     resetarFormulario();
     await carregarDados();
   };
@@ -107,6 +142,12 @@ function Cultivos() {
   const editar = (c) => selecionarCultivo(c.id);
 
   const excluir = async (id) => {
+    // 🔒 usuário comum NÃO pode excluir
+    if (!isAdmin()) {
+      alert("Você não tem permissão para excluir cultivos.");
+      return;
+    }
+
     if (window.confirm("Excluir cultivo?")) {
       await deleteCultivoPorIdAPI(id);
       carregarDados();
@@ -219,12 +260,14 @@ function Cultivos() {
               </Form.Group>
             </Col>
 
+            {/* PRODUTOR — RESTRITO */}
             <Col md={2}>
               <Form.Group>
                 <Form.Label>Produtor</Form.Label>
                 <Form.Select
                   name="id_produtor"
                   value={form.id_produtor}
+                  disabled={!isAdmin()} // 🔒 comum não pode escolher
                   onChange={(e) =>
                     setForm({ ...form, id_produtor: Number(e.target.value) })
                   }
@@ -275,7 +318,13 @@ function Cultivos() {
 
               <td>
                 <Button size="sm" variant="warning" onClick={() => editar(c)}>Editar</Button>{' '}
-                <Button size="sm" variant="danger" onClick={() => excluir(c.id)}>Excluir</Button>
+
+                {/* 🔒 EXCLUIR — apenas admin */}
+                {isAdmin() && (
+                  <Button size="sm" variant="danger" onClick={() => excluir(c.id)}>
+                    Excluir
+                  </Button>
+                )}
               </td>
             </tr>
           ))}
