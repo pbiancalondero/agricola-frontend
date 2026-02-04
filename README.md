@@ -1,6 +1,6 @@
 # 🌾 Sistema de Produção Agrícola — Frontend (PWA)
 
-Este repositório contém o **frontend** do Sistema de Produção Agrícola, desenvolvido em **React** como uma **Progressive Web App (PWA)**.
+Este repositório contém o **frontend** do Sistema de Produção Agrícola, desenvolvido em **React** como uma **Progressive Web App (PWA)** para a disciplina de Programação para Web.
 A aplicação consome uma **API REST** própria e oferece controle completo de **Produtores, Cultivos e Safras**, com **autenticação JWT** e **controle de permissões**.
 
 ---
@@ -168,16 +168,9 @@ O projeto será compilado com suporte completo a **PWA**.
 ---
 
 ##  Observações
-
-* Este projeto representa **a camada frontend** do sistema
-* Desenvolvido com foco em **organização, segurança e regras de negócio**
-* Ideal para estudos de:
+Projeto desenvolvido para a disciplina de Programação para Web, com o objetivo de aplicar conceitos de:
 
   * React
   * Autenticação JWT
   * PWA
   * Integração com API REST
-
----
-
-Projeto desenvolvido como parte de estudos acadêmicos e práticos em **Desenvolvimento Web** e **Arquitetura Frontend**.
